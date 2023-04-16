@@ -176,8 +176,53 @@ public class Entities {
 
         int codePoint;
         boolean skipped = false;
+        boolean inExpression = false;
+        final char nullChar = '\u0000';
+        char activeExpressionQuote = nullChar;
+
         for (int offset = 0; offset < length; offset += Character.charCount(codePoint)) {
             codePoint = string.codePointAt(offset);
+
+            if (inExpression || codePoint == '{') {
+                if (codePoint < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+                    final char c = (char) codePoint;
+                    boolean isEscaped = offset > 0 && string.codePointAt(offset - 1) == '\\';
+                    switch (c) {
+                        case '{':
+                            if (offset > 0 && string.codePointAt(offset - 1) == '$') {
+                                inExpression = true;
+                            }
+                            accum.append(c);
+                            break;
+                        case '\'':
+                            if (activeExpressionQuote == '\'' && !isEscaped) {
+                                activeExpressionQuote = nullChar;
+                            } else if (activeExpressionQuote == nullChar) {
+                                activeExpressionQuote = '\'';
+                            }
+                            accum.append(c);
+                            break;
+                        case '"':
+                            if (activeExpressionQuote == '"' && !isEscaped) {
+                                activeExpressionQuote = nullChar;
+                            } else if (activeExpressionQuote == nullChar) {
+                                activeExpressionQuote = '"';
+                            }
+                            accum.append(c);
+                            break;
+                        case '}':
+                            if (activeExpressionQuote == nullChar) inExpression = false;
+                            accum.append(c);
+                            break;
+                        default:
+                            accum.append(c);
+                    }
+                } else {
+                    final String c = new String(Character.toChars(codePoint));
+                    accum.append(c);
+                }
+                continue;
+            }
 
             if (normaliseWhite) {
                 if (StringUtil.isWhitespace(codePoint)) {

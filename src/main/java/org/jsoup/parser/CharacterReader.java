@@ -537,6 +537,45 @@ public final class CharacterReader {
         return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
+    String consumeFtlExpression() {
+        int pos = bufPos;
+        final int start = pos;
+        final int remaining = bufLength;
+        final char[] val = charBuf;
+
+        char activeExpressionQuote = TokeniserState.nullChar;
+        OUTER:
+        while (pos < remaining) {
+            boolean isEscaped = pos > 0 && val[pos - 1] == '\\';
+            switch (val[pos]) {
+                case '\'':
+                    if (activeExpressionQuote == '\'' && !isEscaped) {
+                        activeExpressionQuote = TokeniserState.nullChar;
+                    } else if (activeExpressionQuote == TokeniserState.nullChar) {
+                        activeExpressionQuote = '\'';
+                    }
+                    pos++;
+                    break;
+                case '"':
+                    if (activeExpressionQuote == '"' && !isEscaped) {
+                        activeExpressionQuote = TokeniserState.nullChar;
+                    } else if (activeExpressionQuote == TokeniserState.nullChar) {
+                        activeExpressionQuote = '"';
+                    }
+                    pos++;
+                    break;
+                case '}':
+                    if (activeExpressionQuote == TokeniserState.nullChar) break OUTER;
+                    pos++;
+                    break;
+                default:
+                    pos++;
+            }
+        }
+        bufPos = pos;
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
+    }
+
     String consumeRawData() {
         // <, null
         //bufferUp(); // no need to bufferUp, just called consume()

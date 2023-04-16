@@ -137,10 +137,15 @@ public class Attribute implements Map.Entry<String, String>, Cloneable  {
         htmlNoValidate(key, val, accum, out);
     }
 
+    static boolean isFtlExpression(String key) {
+        return key.startsWith("${") && key.endsWith("}");
+    }
+
     static void htmlNoValidate(String key, @Nullable String val, Appendable accum, Document.OutputSettings out) throws IOException {
         // structured like this so that Attributes can check we can write first, so it can add whitespace correctly
         accum.append(key);
-        if (!shouldCollapseAttribute(key, val, out)) {
+        // We hackily use attributes to represent inline expressions within the tag, so avoid outputting empty values for them
+        if (!shouldCollapseAttribute(key, val, out) && !(isFtlExpression(key) && val == null)) {
             accum.append("=\"");
             Entities.escape(accum, Attributes.checkNotNull(val) , out, true, false, false, false);
             accum.append('"');
@@ -153,12 +158,13 @@ public class Attribute implements Map.Entry<String, String>, Cloneable  {
     private static final Pattern htmlKeyReplace = Pattern.compile("[\\x00-\\x1f\\x7f-\\x9f \"'/=]");
 
     @Nullable public static String getValidKey(String key, Syntax syntax) {
+        // We hackily use attributes to represent inline expressions within the tag, so don't replace their names
         // we consider HTML attributes to always be valid. XML checks key validity
-        if (syntax == Syntax.xml && !xmlKeyValid.matcher(key).matches()) {
+        if (syntax == Syntax.xml && !xmlKeyValid.matcher(key).matches() && !isFtlExpression(key)) {
             key = xmlKeyReplace.matcher(key).replaceAll("");
             return xmlKeyValid.matcher(key).matches() ? key : null; // null if could not be coerced
         }
-        else if (syntax == Syntax.html && !htmlKeyValid.matcher(key).matches()) {
+        else if (syntax == Syntax.html && !htmlKeyValid.matcher(key).matches() && !isFtlExpression(key)) {
             key = htmlKeyReplace.matcher(key).replaceAll("");
             return htmlKeyValid.matcher(key).matches() ? key : null; // null if could not be coerced
         }

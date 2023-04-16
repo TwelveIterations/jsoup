@@ -571,6 +571,11 @@ enum TokeniserState {
     BeforeAttributeName {
         // from tagname <xxx
         void read(Tokeniser t, CharacterReader r) {
+            if (r.matches("${")) {
+                t.transition(FtlTagAttributeExpression);
+                return;
+            }
+
             char c = r.consume();
             switch (c) {
                 case '\t':
@@ -657,6 +662,11 @@ enum TokeniserState {
     },
     AfterAttributeName {
         void read(Tokeniser t, CharacterReader r) {
+            if (r.matches("${")) {
+                t.transition(FtlTagAttributeExpression);
+                return;
+            }
+
             char c = r.consume();
             switch (c) {
                 case '\t':
@@ -1980,6 +1990,50 @@ enum TokeniserState {
             }
         }
     },
+    FtlTagAttributeExpression {
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeFtlExpression();
+            t.tagPending.newAttribute();
+            t.tagPending.appendAttributeName(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '}':
+                    t.tagPending.appendAttributeName(c);
+                    t.transition(AfterAttributeName);
+                    break;
+                case '\t':
+                case '\n':
+                case '\r':
+                case '\f':
+                case ' ':
+                    t.transition(AfterAttributeName);
+                    break;
+                case '/':
+                    t.transition(SelfClosingStartTag);
+                    break;
+                case '=':
+                    t.transition(BeforeAttributeValue);
+                    break;
+                case '>':
+                    t.emitTagPending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                case '"':
+                case '\'':
+                case '<':
+                    t.error(this);
+                    t.tagPending.appendAttributeName(c);
+                    break;
+                default: // buffer underrun
+                    t.tagPending.appendAttributeName(c);
+            }
+        }
+    },
     FtlCommentStart {
         void read(Tokeniser t, CharacterReader r) {
             char c = r.consume();
@@ -2107,8 +2161,7 @@ enum TokeniserState {
                     t.transition(FtlComment);
             }
         }
-    }
-    ;
+    };
 
 
     abstract void read(Tokeniser t, CharacterReader r);

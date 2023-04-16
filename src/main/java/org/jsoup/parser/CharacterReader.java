@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.Locale;
 
 /**
- CharacterReader consumes tokens off a string. Used internally by jsoup. API subject to changes.
+ * CharacterReader consumes tokens off a string. Used internally by jsoup. API subject to changes.
  */
 public final class CharacterReader {
     static final char EOF = (char) -1;
@@ -32,7 +32,8 @@ public final class CharacterReader {
     private static final int stringCacheSize = 512;
     private String[] stringCache = new String[stringCacheSize]; // holds reused strings in this doc, to lessen garbage
 
-    @Nullable private ArrayList<Integer> newlinePositions = null; // optionally track the pos() position of newlines - scans during bufferUp()
+    @Nullable
+    private ArrayList<Integer> newlinePositions = null; // optionally track the pos() position of newlines - scans during bufferUp()
     private int lineNumberOffset = 1; // line numbers start at 1; += newlinePosition[indexof(pos)]
 
     public CharacterReader(Reader input, int sz) {
@@ -65,6 +66,7 @@ public final class CharacterReader {
     }
 
     private boolean readFully; // if the underlying stream has been completely read, no value in further buffering
+
     private void bufferUp() {
         if (readFully || bufPos < bufSplitPoint)
             return;
@@ -110,6 +112,7 @@ public final class CharacterReader {
 
     /**
      * Gets the position currently read to in the content. Starts at 0.
+     *
      * @return current position
      */
     public int pos() {
@@ -117,36 +120,37 @@ public final class CharacterReader {
     }
 
     /**
-     Enables or disables line number tracking. By default, will be <b>off</b>.Tracking line numbers improves the
-     legibility of parser error messages, for example. Tracking should be enabled before any content is read to be of
-     use.
-
-     @param track set tracking on|off
-     @since 1.14.3
+     * Enables or disables line number tracking. By default, will be <b>off</b>.Tracking line numbers improves the
+     * legibility of parser error messages, for example. Tracking should be enabled before any content is read to be of
+     * use.
+     *
+     * @param track set tracking on|off
+     * @since 1.14.3
      */
     public void trackNewlines(boolean track) {
         if (track && newlinePositions == null) {
             newlinePositions = new ArrayList<>(maxBufferLen / 80); // rough guess of likely count
             scanBufferForNewlines(); // first pass when enabled; subsequently called during bufferUp
-        }
-        else if (!track)
+        } else if (!track)
             newlinePositions = null;
     }
 
     /**
-     Check if the tracking of newlines is enabled.
-     @return the current newline tracking state
-     @since 1.14.3
+     * Check if the tracking of newlines is enabled.
+     *
+     * @return the current newline tracking state
+     * @since 1.14.3
      */
     public boolean isTrackNewlines() {
         return newlinePositions != null;
     }
 
     /**
-     Get the current line number (that the reader has consumed to). Starts at line #1.
-     @return the current line number, or 1 if line tracking is not enabled.
-     @since 1.14.3
-     @see #trackNewlines(boolean)
+     * Get the current line number (that the reader has consumed to). Starts at line #1.
+     *
+     * @return the current line number, or 1 if line tracking is not enabled.
+     * @see #trackNewlines(boolean)
+     * @since 1.14.3
      */
     public int lineNumber() {
         return lineNumber(pos());
@@ -165,10 +169,11 @@ public final class CharacterReader {
     }
 
     /**
-     Get the current column number (that the reader has consumed to). Starts at column #1.
-     @return the current column number
-     @since 1.14.3
-     @see #trackNewlines(boolean)
+     * Get the current column number (that the reader has consumed to). Starts at column #1.
+     *
+     * @return the current column number
+     * @see #trackNewlines(boolean)
+     * @since 1.14.3
      */
     public int columnNumber() {
         return columnNumber(pos());
@@ -180,16 +185,17 @@ public final class CharacterReader {
 
         int i = lineNumIndex(pos);
         if (i == -1)
-          return pos + 1;
+            return pos + 1;
         return pos - newlinePositions.get(i) + 1;
     }
 
     /**
-     Get a formatted string representing the current line and cursor positions. E.g. <code>5:10</code> indicating line
-     number 5 and column number 10.
-     @return line:col position
-     @since 1.14.3
-     @see #trackNewlines(boolean)
+     * Get a formatted string representing the current line and cursor positions. E.g. <code>5:10</code> indicating line
+     * number 5 and column number 10.
+     *
+     * @return line:col position
+     * @see #trackNewlines(boolean)
+     * @since 1.14.3
      */
     String cursorPos() {
         return lineNumber() + ":" + columnNumber();
@@ -203,7 +209,7 @@ public final class CharacterReader {
     }
 
     /**
-     Scans the buffer for newline position, and tracks their location in newlinePositions.
+     * Scans the buffer for newline position, and tracks their location in newlinePositions.
      */
     private void scanBufferForNewlines() {
         if (!isTrackNewlines())
@@ -227,6 +233,7 @@ public final class CharacterReader {
 
     /**
      * Tests if all the content has been read.
+     *
      * @return true if nothing left to read.
      */
     public boolean isEmpty() {
@@ -240,6 +247,7 @@ public final class CharacterReader {
 
     /**
      * Get the char at the current position.
+     *
      * @return char
      */
     public char current() {
@@ -255,7 +263,7 @@ public final class CharacterReader {
     }
 
     /**
-     Unconsume one character (bufPos--). MUST only be called directly after a consume(), and no chance of a bufferUp.
+     * Unconsume one character (bufPos--). MUST only be called directly after a consume(), and no chance of a bufferUp.
      */
     void unconsume() {
         if (bufPos < 1)
@@ -294,6 +302,7 @@ public final class CharacterReader {
 
     /**
      * Returns the number of characters between the current position and the next instance of the input char
+     *
      * @param c scan target
      * @return offset between current position and next instance of target. -1 if not found.
      */
@@ -320,9 +329,9 @@ public final class CharacterReader {
         for (int offset = bufPos; offset < bufLength; offset++) {
             // scan to first instance of startchar:
             if (startChar != charBuf[offset])
-                while(++offset < bufLength && startChar != charBuf[offset]) { /* empty */ }
+                while (++offset < bufLength && startChar != charBuf[offset]) { /* empty */ }
             int i = offset + 1;
-            int last = i + seq.length()-1;
+            int last = i + seq.length() - 1;
             if (offset < bufLength && last <= bufLength) {
                 for (int j = 1; i < last && seq.charAt(j) == charBuf[i]; i++, j++) { /* empty */ }
                 if (i == last) // found full sequence
@@ -334,6 +343,7 @@ public final class CharacterReader {
 
     /**
      * Reads characters up to the specific char.
+     *
      * @param c the delimiter
      * @return the chars read
      */
@@ -369,6 +379,7 @@ public final class CharacterReader {
 
     /**
      * Read characters until the first of any delimiters is found.
+     *
      * @param chars delimiters to scan for
      * @return characters read up to the matched delimiter.
      */
@@ -381,7 +392,8 @@ public final class CharacterReader {
         final int charLen = chars.length;
         int i;
 
-        OUTER: while (pos < remaining) {
+        OUTER:
+        while (pos < remaining) {
             for (i = 0; i < charLen; i++) {
                 if (val[pos] == chars[i])
                     break OUTER;
@@ -390,7 +402,7 @@ public final class CharacterReader {
         }
 
         bufPos = pos;
-        return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
     String consumeToAnySorted(final char... chars) {
@@ -406,7 +418,7 @@ public final class CharacterReader {
             pos++;
         }
         bufPos = pos;
-        return bufPos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return bufPos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
     String consumeData() {
@@ -417,7 +429,8 @@ public final class CharacterReader {
         final int remaining = bufLength;
         final char[] val = charBuf;
 
-        OUTER: while (pos < remaining) {
+        OUTER:
+        while (pos < remaining) {
             switch (val[pos]) {
                 case '&':
                 case '<':
@@ -428,7 +441,7 @@ public final class CharacterReader {
             }
         }
         bufPos = pos;
-        return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
     String consumeAttributeQuoted(final boolean single) {
@@ -439,7 +452,44 @@ public final class CharacterReader {
         final int remaining = bufLength;
         final char[] val = charBuf;
 
-        OUTER: while (pos < remaining) {
+        boolean inExpression = false;
+        char activeExpressionQuote = TokeniserState.nullChar;
+        OUTER:
+        while (pos < remaining) {
+            // FreeMarker Support
+            if (inExpression || val[pos] == '{') {
+                boolean isEscaped = pos > 0 && val[pos - 1] == '\\';
+                switch (val[pos]) {
+                    case '\'':
+                        if (activeExpressionQuote == '\'' && !isEscaped) {
+                            activeExpressionQuote = TokeniserState.nullChar;
+                        } else if (activeExpressionQuote == TokeniserState.nullChar) {
+                            activeExpressionQuote = '\'';
+                        }
+                        pos++;
+                        break;
+                    case '{':
+                        if (pos > 0 && val[pos - 1] == '$') inExpression = true;
+                        pos++;
+                        break;
+                    case '"':
+                        if (activeExpressionQuote == '"' && !isEscaped) {
+                            activeExpressionQuote = TokeniserState.nullChar;
+                        } else if (activeExpressionQuote == TokeniserState.nullChar) {
+                            activeExpressionQuote = '"';
+                        }
+                        pos++;
+                        break;
+                    case '}':
+                        if (activeExpressionQuote == TokeniserState.nullChar) inExpression = false;
+                        pos++;
+                        break;
+                    default:
+                        pos++;
+                }
+                continue;
+            }
+
             switch (val[pos]) {
                 case '&':
                 case TokeniserState.nullChar:
@@ -453,7 +503,7 @@ public final class CharacterReader {
             }
         }
         bufPos = pos;
-        return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
 
@@ -465,7 +515,8 @@ public final class CharacterReader {
         final int remaining = bufLength;
         final char[] val = charBuf;
 
-        OUTER: while (pos < remaining) {
+        OUTER:
+        while (pos < remaining) {
             switch (val[pos]) {
                 case '<':
                 case TokeniserState.nullChar:
@@ -475,7 +526,7 @@ public final class CharacterReader {
             }
         }
         bufPos = pos;
-        return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
     String consumeTagName() {
@@ -487,7 +538,8 @@ public final class CharacterReader {
         final int remaining = bufLength;
         final char[] val = charBuf;
 
-        OUTER: while (pos < remaining) {
+        OUTER:
+        while (pos < remaining) {
             switch (val[pos]) {
                 case '\t':
                 case '\n':
@@ -503,7 +555,7 @@ public final class CharacterReader {
         }
 
         bufPos = pos;
-        return pos > start ? cacheString(charBuf, stringCache, start, pos -start) : "";
+        return pos > start ? cacheString(charBuf, stringCache, start, pos - start) : "";
     }
 
     String consumeToEnd() {
@@ -586,7 +638,7 @@ public final class CharacterReader {
             return false;
 
         for (int offset = 0; offset < scanLength; offset++)
-            if (seq.charAt(offset) != charBuf[bufPos +offset])
+            if (seq.charAt(offset) != charBuf[bufPos + offset])
                 return false;
         return true;
     }
@@ -632,8 +684,9 @@ public final class CharacterReader {
     }
 
     /**
-     Checks if the current pos matches an ascii alpha (A-Z a-z) per https://infra.spec.whatwg.org/#ascii-alpha
-     @return if it matches or not
+     * Checks if the current pos matches an ascii alpha (A-Z a-z) per https://infra.spec.whatwg.org/#ascii-alpha
+     *
+     * @return if it matches or not
      */
     boolean matchesAsciiAlpha() {
         if (isEmpty())
@@ -671,10 +724,13 @@ public final class CharacterReader {
     // we maintain a cache of the previously scanned sequence, and return that if applicable on repeated scans.
     // that improves the situation where there is a sequence of <p<p<p<p<p<p<p...</title> and we're bashing on the <p
     // looking for the </title>. Resets in bufferUp()
-    @Nullable private String lastIcSeq; // scan cache
+    @Nullable
+    private String lastIcSeq; // scan cache
     private int lastIcIndex; // nearest found indexOf
 
-    /** Used to check presence of </title>, </style> when we're in RCData and see a <xxx. Only finds consistent case. */
+    /**
+     * Used to check presence of </title>, </style> when we're in RCData and see a <xxx. Only finds consistent case.
+     */
     boolean containsIgnoreCase(String seq) {
         if (seq.equals(lastIcSeq)) {
             if (lastIcIndex == -1) return false;
@@ -685,7 +741,8 @@ public final class CharacterReader {
         String loScan = seq.toLowerCase(Locale.ENGLISH);
         int lo = nextIndexOf(loScan);
         if (lo > -1) {
-            lastIcIndex = bufPos + lo; return true;
+            lastIcIndex = bufPos + lo;
+            return true;
         }
 
         String hiScan = seq.toUpperCase(Locale.ENGLISH);
@@ -704,7 +761,7 @@ public final class CharacterReader {
 
     /**
      * Caches short strings, as a flyweight pattern, to reduce GC load. Just for this doc, to prevent leaks.
-     * <p />
+     * <p/>
      * Simplistic, and on hash collisions just falls back to creating a new string, vs a full HashMap with Entry list.
      * That saves both having to create objects as hash keys, and running through the entry list, at the expense of
      * some more duplicates.

@@ -3,6 +3,8 @@ package org.jsoup.parser;
 import org.jsoup.UncheckedIOException;
 import org.jsoup.integration.ParseTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -513,6 +515,17 @@ public class CharacterReaderTest {
         reader.consumeTo(' ');
         assertEquals(1002, reader.lineNumber());
         assertEquals(14, reader.columnNumber());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void consumeAttributeQuotedFreeMarkerExpression(boolean single) {
+        final char quote = single ? '\'' : '"';
+        final char otherQuote = single ? '"' : '\'';
+        final String unquotedValue = "hello ${ " + quote + otherQuote + "}\\" + quote + "{" + otherQuote + quote + " } world";
+        CharacterReader reader = new CharacterReader(quote + unquotedValue + quote);
+        assertEquals(quote, reader.consume());
+        assertEquals(unquotedValue, reader.consumeAttributeQuoted(single));
     }
 
 }

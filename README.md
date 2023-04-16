@@ -1,3 +1,21 @@
+# jsoup-ftl - about this fork
+
+The default FreeMarker template notations (`<#...>`, `<@...>`, `${...}`) and their deviations from normal HTML make them 
+problematic for processing through jsoup, as jsoup considers the directives as bogus tags and cleans up expressions 
+within tags and attributes to follow HTML naming rules (as in stripping the ${...} bit and cleaning up what's inside).
+
+FreeMarker supports an alternate notation via `[#...]` which would solve some of these problems, but that still prevents
+a proper traversal through the tree as you would expect, since all directives would just become normal text nodes.
+
+This fork patches and extends jsoup to provide rudimentary support for FreeMarker templates, allowing you to parse 
+and output an .ftl file in the same manner as you would an HTML file, without corrupting the FreeMarker-specific 
+contents of it.
+
+jsoup is very goal-oriented at the cost of extensibility, so I do not believe these changes are suitable to be merged 
+upstream, as some of the patches tie directly into the reader and writer and can not be toggled off. For that reason 
+this fork should be used *only* for processing FreeMarker templates, as it will always treat any input as if it was FTL. 
+There is also no automated tests and this was thrown together in a day, so I would not consider it production-ready. 
+
 # jsoup: Java HTML Parser
 
 **jsoup** is a Java library for working with real-world HTML. It provides a very convenient API for fetching URLs and extracting and manipulating data, using the best of HTML5 DOM methods and CSS selectors.

@@ -519,7 +519,7 @@ abstract class Token {
         }
 
         final void appendExpression(char append) {
-            appendDirectiveName(String.valueOf(append));
+            appendExpression(String.valueOf(append));
         }
 
         @Override
@@ -699,7 +699,7 @@ abstract class Token {
         }
 
         FtlComment() {
-            type = TokenType.Comment;
+            type = TokenType.FtlComment;
         }
 
         String getData() {

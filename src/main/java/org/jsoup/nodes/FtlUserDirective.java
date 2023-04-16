@@ -19,10 +19,6 @@ public class FtlUserDirective extends Element {
         this.expression = expression;
     }
 
-    public String nodeName() {
-        return "#ftluserdirective";
-    }
-
     @Nullable
     public String expression() {
         return expression;

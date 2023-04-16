@@ -18,10 +18,6 @@ public class FtlDirective extends Element {
         this.expression = expression;
     }
 
-    public String nodeName() {
-        return "#ftldirective";
-    }
-
     @Nullable
     public String expression() {
         return expression;

@@ -134,9 +134,9 @@ enum TokeniserState {
                 t.emit("</");
                 t.transition(Data);
             } else if(r.matches('#')) {
-                t.transition(EndFtlDirectiveOpen);
+                t.advanceTransition(EndFtlDirectiveOpen);
             } else if(r.matches('@')) {
-                t.transition(EndFtlUserDirectiveOpen);
+                t.advanceTransition(EndFtlUserDirectiveOpen);
             } else if (r.matchesAsciiAlpha()) {
                 t.createTagPending(false);
                 t.transition(TagName);
@@ -1832,9 +1832,11 @@ enum TokeniserState {
                     t.transition(Data);
                     break;
                 case '"':
+                    t.ftlDirectivePending.appendExpression(c);
                     t.transition(FtlDirectiveExpressionQuotedString);
                     break;
                 case '\'':
+                    t.ftlDirectivePending.appendExpression(c);
                     t.transition(FtlDirectiveExpressionSingleQuotedString);
                     break;
                 case '<':
@@ -1854,6 +1856,7 @@ enum TokeniserState {
             char c = r.consume();
             switch (c) {
                 case '"':
+                    t.ftlDirectivePending.appendExpression(c);
                     t.transition(FtlDirectiveExpression);
                     break;
                 case nullChar:
@@ -1877,6 +1880,7 @@ enum TokeniserState {
             char c = r.consume();
             switch (c) {
                 case '\'':
+                    t.ftlDirectivePending.appendExpression(c);
                     t.transition(FtlDirectiveExpression);
                     break;
                 case nullChar:
@@ -1912,9 +1916,11 @@ enum TokeniserState {
                     t.transition(Data);
                     break;
                 case '"':
+                    t.ftlUserDirectivePending.appendExpression(c);
                     t.transition(FtlUserDirectiveExpressionQuotedString);
                     break;
                 case '\'':
+                    t.ftlUserDirectivePending.appendExpression(c);
                     t.transition(FtlUserDirectiveExpressionSingleQuotedString);
                     break;
                 case '<':
@@ -1934,6 +1940,7 @@ enum TokeniserState {
             char c = r.consume();
             switch (c) {
                 case '"':
+                    t.ftlUserDirectivePending.appendExpression(c);
                     t.transition(FtlUserDirectiveExpression);
                     break;
                 case nullChar:
@@ -1957,6 +1964,7 @@ enum TokeniserState {
             char c = r.consume();
             switch (c) {
                 case '\'':
+                    t.ftlUserDirectivePending.appendExpression(c);
                     t.transition(FtlUserDirectiveExpression);
                     break;
                 case nullChar:

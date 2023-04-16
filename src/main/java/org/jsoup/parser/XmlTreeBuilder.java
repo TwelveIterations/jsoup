@@ -1,15 +1,7 @@
 package org.jsoup.parser;
 
 import org.jsoup.helper.Validate;
-import org.jsoup.nodes.CDataNode;
-import org.jsoup.nodes.Comment;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.DocumentType;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Entities;
-import org.jsoup.nodes.Node;
-import org.jsoup.nodes.TextNode;
-import org.jsoup.nodes.XmlDeclaration;
+import org.jsoup.nodes.*;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.io.Reader;
@@ -72,6 +64,21 @@ public class XmlTreeBuilder extends TreeBuilder {
                 break;
             case EOF: // could put some normalisation here if desired
                 break;
+            case StartFtlDirective:
+                insert(token.asStartFtlDirective());
+                break;
+            case StartFtlUserDirective:
+                insert(token.asStartFtlUserDirective());
+                break;
+            case EndFtlDirective:
+                popStackToClose(token.asEndFtlDirective());
+                break;
+            case EndFtlUserDirective:
+                popStackToClose(token.asEndFtlUserDirective());
+                break;
+            case FtlComment:
+                insert(token.asFtlComment());
+                break;
             default:
                 Validate.fail("Unexpected token type: " + token.type);
         }
@@ -129,6 +136,37 @@ public class XmlTreeBuilder extends TreeBuilder {
         insertNode(doctypeNode, d);
     }
 
+    FtlDirective insert(Token.StartFtlDirective startTag) {
+        Tag tag = tagFor(startTag.name(), settings);
+        FtlDirective el = new FtlDirective(tag, startTag.expression);
+        insertNode(el, startTag);
+        if (startTag.isSelfClosing()) {
+            if (!tag.isKnownTag()) // unknown tag, remember this is self closing for output. see above.
+                tag.setSelfClosing();
+        } else {
+            stack.add(el);
+        }
+        return el;
+    }
+
+    FtlUserDirective insert(Token.StartFtlUserDirective startTag) {
+        Tag tag = tagFor(startTag.name(), settings);
+        FtlUserDirective el = new FtlUserDirective(tag, startTag.expression);
+        insertNode(el, startTag);
+        if (startTag.isSelfClosing()) {
+            if (!tag.isKnownTag()) // unknown tag, remember this is self closing for output. see above.
+                tag.setSelfClosing();
+        } else {
+            stack.add(el);
+        }
+        return el;
+    }
+
+    void insert(Token.FtlComment commentToken) {
+        FtlComment comment = new FtlComment(commentToken.getData());
+        insertNode(comment, commentToken);
+    }
+
     /**
      * If the stack contains an element with this tag's name, pop up the stack to remove the first occurrence. If not
      * found, skips.
@@ -136,8 +174,20 @@ public class XmlTreeBuilder extends TreeBuilder {
      * @param endTag tag to close
      */
     protected void popStackToClose(Token.EndTag endTag) {
+        popStackToClose(endTag.tagName, endTag);
+    }
+
+    protected void popStackToClose(Token.EndFtlDirective endTag) {
+        popStackToClose(endTag.directiveName, endTag);
+    }
+
+    protected void popStackToClose(Token.EndFtlUserDirective endTag) {
+        popStackToClose(endTag.directiveName, endTag);
+    }
+
+    protected void popStackToClose(String tagName, Token endTag) {
         // like in HtmlTreeBuilder - don't scan up forever for very (artificially) deeply nested stacks
-        String elName = settings.normalizeTag(endTag.tagName);
+        String elName = settings.normalizeTag(tagName);
         Element firstFound = null;
 
         final int bottom = stack.size() - 1;

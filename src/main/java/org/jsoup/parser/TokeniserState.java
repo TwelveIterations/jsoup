@@ -104,6 +104,12 @@ enum TokeniserState {
                 case '/':
                     t.advanceTransition(EndTagOpen);
                     break;
+                case '#':
+                    t.advanceTransition(FtlDirectiveOpen);
+                    break;
+                case '@':
+                    t.advanceTransition(FtlUserDirectiveOpen);
+                    break;
                 case '?':
                     t.createBogusCommentPending();
                     t.transition(BogusComment);
@@ -127,6 +133,10 @@ enum TokeniserState {
                 t.eofError(this);
                 t.emit("</");
                 t.transition(Data);
+            } else if(r.matches('#')) {
+                t.transition(EndFtlDirectiveOpen);
+            } else if(r.matches('@')) {
+                t.transition(EndFtlUserDirectiveOpen);
             } else if (r.matchesAsciiAlpha()) {
                 t.createTagPending(false);
                 t.transition(TagName);
@@ -1616,7 +1626,481 @@ enum TokeniserState {
                 t.transition(Data);
             }// otherwise, buffer underrun, stay in data section
         }
-    };
+    },
+    FtlDirectiveOpen {
+        void read(Tokeniser t, CharacterReader r) {
+            if (r.matchesAsciiAlpha()) {
+                t.createFtlDirectivePending(true);
+                t.transition(FtlDirectiveName);
+            } else if(r.matchConsume("--")) {
+                t.createFtlCommentPending();
+                t.transition(FtlCommentStart);
+            } else {
+                t.error(this);
+                t.emit("<#"); // string that got us here
+                t.transition(Data);
+            }
+        }
+    },
+    FtlUserDirectiveOpen {
+        void read(Tokeniser t, CharacterReader r) {
+            if (r.matchesAsciiAlpha()) {
+                t.createFtlUserDirectivePending(true);
+                t.transition(FtlUserDirectiveName);
+            } else {
+                t.error(this);
+                t.emit("<@"); // string that got us here
+                t.transition(Data);
+            }
+        }
+    },
+    EndFtlDirectiveOpen {
+        void read(Tokeniser t, CharacterReader r) {
+            if (r.isEmpty()) {
+                t.eofError(this);
+                t.emit("</#");
+                t.transition(Data);
+            } else if (r.matchesAsciiAlpha()) {
+                t.createFtlDirectivePending(false);
+                t.transition(FtlDirectiveName);
+            } else if (r.matches('>')) {
+                t.error(this);
+                t.advanceTransition(Data);
+            } else {
+                t.error(this);
+                t.createBogusCommentPending();
+                t.commentPending.append('/'); // push the / back on that got us here
+                t.transition(BogusComment);
+            }
+        }
+    },
+    EndFtlUserDirectiveOpen {
+        void read(Tokeniser t, CharacterReader r) {
+            if (r.isEmpty()) {
+                t.eofError(this);
+                t.emit("</@");
+                t.transition(Data);
+            } else if (r.matchesAsciiAlpha()) {
+                t.createFtlUserDirectivePending(false);
+                t.transition(FtlUserDirectiveName);
+            } else if (r.matches('>')) {
+                t.error(this);
+                t.advanceTransition(Data);
+            } else {
+                t.error(this);
+                t.createBogusCommentPending();
+                t.commentPending.append('/'); // push the / back on that got us here
+                t.transition(BogusComment);
+            }
+        }
+    },
+    FtlDirectiveName {
+        // from <# or </# in data, will have start or end tag pending
+        void read(Tokeniser t, CharacterReader r) {
+            // previous FtlDirectiveOpen state did NOT consume, will have a letter char in current
+            String directiveName = r.consumeTagName();
+            t.ftlDirectivePending.appendDirectiveName(directiveName);
+
+            char c = r.consume();
+            switch (c) {
+                case '\t':
+                case '\n':
+                case '\r':
+                case '\f':
+                case ' ':
+                    t.transition(FtlDirectiveExpression);
+                    break;
+                case '/':
+                    t.transition(SelfClosingStartFtlDirective);
+                    break;
+                case '<': // NOTE: out of spec, but clear author intent
+                    r.unconsume();
+                    t.error(this);
+                    // intended fall through to next >
+                case '>':
+                    t.emitFtlDirectivePending();
+                    t.transition(Data);
+                    break;
+                case nullChar: // replacement
+                    t.ftlDirectivePending.appendDirectiveName(replacementStr);
+                    break;
+                case eof: // should emit pending tag?
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // buffer underrun
+                    t.ftlDirectivePending.appendDirectiveName(c);
+            }
+        }
+    },
+    FtlUserDirectiveName {
+        // from <@ or </@ in data, will have start or end tag pending
+        void read(Tokeniser t, CharacterReader r) {
+            // previous FtlUserDirectiveOpen state did NOT consume, will have a letter char in current
+            String directiveName = r.consumeTagName();
+            t.ftlUserDirectivePending.appendDirectiveName(directiveName);
+
+            char c = r.consume();
+            switch (c) {
+                case '\t':
+                case '\n':
+                case '\r':
+                case '\f':
+                case ' ':
+                    t.transition(FtlUserDirectiveExpression);
+                    break;
+                case '/':
+                    t.transition(SelfClosingStartFtlUserDirective);
+                    break;
+                case '<': // NOTE: out of spec, but clear author intent
+                    r.unconsume();
+                    t.error(this);
+                    // intended fall through to next >
+                case '>':
+                    t.emitFtlUserDirectivePending();
+                    t.transition(Data);
+                    break;
+                case nullChar: // replacement
+                    t.ftlUserDirectivePending.appendDirectiveName(replacementStr);
+                    break;
+                case eof: // should emit pending tag?
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // buffer underrun
+                    t.ftlUserDirectivePending.appendDirectiveName(c);
+            }
+        }
+    },
+    SelfClosingStartFtlDirective {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '>':
+                    t.ftlDirectivePending.selfClosing = true;
+                    t.emitFtlDirectivePending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default:
+                    r.unconsume();
+                    t.error(this);
+                    t.transition(FtlDirectiveExpression);
+            }
+        }
+    },
+    SelfClosingStartFtlUserDirective {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '>':
+                    t.ftlUserDirectivePending.selfClosing = true;
+                    t.emitFtlUserDirectivePending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default:
+                    r.unconsume();
+                    t.error(this);
+                    t.transition(FtlUserDirectiveExpression);
+            }
+        }
+    },
+    FtlDirectiveExpression {
+        // from tagname <#xxx
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeToAnySorted(ftlExpression);
+            t.ftlDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '/':
+                    t.transition(SelfClosingStartFtlDirective);
+                    break;
+                case '>':
+                    t.emitFtlDirectivePending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                case '"':
+                    t.transition(FtlDirectiveExpressionQuotedString);
+                    break;
+                case '\'':
+                    t.transition(FtlDirectiveExpressionSingleQuotedString);
+                    break;
+                case '<':
+                    t.error(this);
+                    t.ftlDirectivePending.appendExpression(c);
+                    break;
+                default: // buffer underrun
+                    t.ftlDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlDirectiveExpressionQuotedString {
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeQuotedWithEscapes(false);
+            t.ftlDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '"':
+                    t.transition(FtlDirectiveExpression);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlDirectivePending.appendExpression(replacementChar);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // hit end of buffer in first read, still in attribute
+                    t.ftlDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlDirectiveExpressionSingleQuotedString {
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeQuotedWithEscapes(true);
+            t.ftlDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '\'':
+                    t.transition(FtlDirectiveExpression);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlDirectivePending.appendExpression(replacementChar);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // hit end of buffer in first read, still in attribute
+                    t.ftlDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlUserDirectiveExpression {
+        // from tagname <@xxx
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeToAnySorted(ftlExpression);
+            t.ftlUserDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '/':
+                    t.transition(SelfClosingStartFtlUserDirective);
+                    break;
+                case '>':
+                    t.emitFtlUserDirectivePending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                case '"':
+                    t.transition(FtlUserDirectiveExpressionQuotedString);
+                    break;
+                case '\'':
+                    t.transition(FtlUserDirectiveExpressionSingleQuotedString);
+                    break;
+                case '<':
+                    t.error(this);
+                    t.ftlUserDirectivePending.appendExpression(c);
+                    break;
+                default: // buffer underrun
+                    t.ftlUserDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlUserDirectiveExpressionQuotedString {
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeQuotedWithEscapes(false);
+            t.ftlUserDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '"':
+                    t.transition(FtlUserDirectiveExpression);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlUserDirectivePending.appendExpression(replacementChar);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // hit end of buffer in first read, still in attribute
+                    t.ftlUserDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlUserDirectiveExpressionSingleQuotedString {
+        void read(Tokeniser t, CharacterReader r) {
+            String expression = r.consumeQuotedWithEscapes(true);
+            t.ftlUserDirectivePending.appendExpression(expression);
+
+            char c = r.consume();
+            switch (c) {
+                case '\'':
+                    t.transition(FtlUserDirectiveExpression);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlUserDirectivePending.appendExpression(replacementChar);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.transition(Data);
+                    break;
+                default: // hit end of buffer in first read, still in attribute
+                    t.ftlUserDirectivePending.appendExpression(c);
+            }
+        }
+    },
+    FtlCommentStart {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '-':
+                    t.transition(FtlCommentStartDash);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlCommentPending.append(replacementChar);
+                    t.transition(FtlComment);
+                    break;
+                case '>':
+                    t.error(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                default:
+                    r.unconsume();
+                    t.transition(FtlComment);
+            }
+        }
+    },
+    FtlCommentStartDash {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '-':
+                    t.transition(FtlCommentEnd);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlCommentPending.append(replacementChar);
+                    t.transition(FtlComment);
+                    break;
+                case '>':
+                    t.error(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                default:
+                    t.ftlCommentPending.append(c);
+                    t.transition(FtlComment);
+            }
+        }
+    },
+    FtlComment {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.current();
+            switch (c) {
+                case '-':
+                    t.advanceTransition(FtlCommentEndDash);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    r.advance();
+                    t.ftlCommentPending.append(replacementChar);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                default:
+                    t.ftlCommentPending.append(r.consumeToAny('-', nullChar));
+            }
+        }
+    },
+    FtlCommentEndDash {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '-':
+                    t.transition(FtlCommentEnd);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlCommentPending.append('-').append(replacementChar);
+                    t.transition(FtlComment);
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                default:
+                    t.ftlCommentPending.append('-').append(c);
+                    t.transition(FtlComment);
+            }
+        }
+    },
+    FtlCommentEnd {
+        void read(Tokeniser t, CharacterReader r) {
+            char c = r.consume();
+            switch (c) {
+                case '>':
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                case nullChar:
+                    t.error(this);
+                    t.ftlCommentPending.append("--").append(replacementChar);
+                    t.transition(Comment);
+                    break;
+                case '-':
+                    t.ftlCommentPending.append('-');
+                    break;
+                case eof:
+                    t.eofError(this);
+                    t.emitFtlCommentPending();
+                    t.transition(Data);
+                    break;
+                default:
+                    t.ftlCommentPending.append("--").append(c);
+                    t.transition(FtlComment);
+            }
+        }
+    }
+    ;
 
 
     abstract void read(Tokeniser t, CharacterReader r);
@@ -1625,6 +2109,7 @@ enum TokeniserState {
     // char searches. must be sorted, used in inSorted. MUST update TokenisetStateTest if more arrays are added.
     static final char[] attributeNameCharsSorted = new char[]{'\t', '\n', '\f', '\r', ' ', '"', '\'', '/', '<', '=', '>'};
     static final char[] attributeValueUnquoted = new char[]{nullChar, '\t', '\n', '\f', '\r', ' ', '"', '&', '\'', '<', '=', '>', '`'};
+    static final char[] ftlExpression = new char[]{nullChar, '\'', '"', '/', '>'};
 
     private static final char replacementChar = Tokeniser.replacementChar;
     private static final String replacementStr = String.valueOf(Tokeniser.replacementChar);

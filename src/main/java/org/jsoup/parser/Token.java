@@ -450,6 +450,292 @@ abstract class Token {
         }
     }
 
+    static abstract class FtlDirective extends Token {
+        @Nullable protected String directiveName;
+        @Nullable protected String normalName; // lc version of tag name, for case insensitive tree build
+        @Nullable protected String expression;
+
+        boolean selfClosing = false;
+
+        @Override
+        FtlDirective reset() {
+            super.reset();
+            directiveName = null;
+            normalName = null;
+            expression = null;
+            selfClosing = false;
+            return this;
+        }
+
+        final boolean hasExpression() {
+            return expression != null;
+        }
+
+        final void finaliseTag() {
+            // finalises for emit
+        }
+
+        /** Preserves case */
+        final String name() { // preserves case, for input into Tag.valueOf (which may drop case)
+            Validate.isFalse(directiveName == null || directiveName.length() == 0);
+            return directiveName;
+        }
+
+        /** Lower case */
+        final String normalName() { // lower case, used in tree building for working out where in tree it should go
+            return normalName;
+        }
+
+        final String toStringName() {
+            return directiveName != null ? directiveName : "[unset]";
+        }
+
+        final FtlDirective name(String name) {
+            directiveName = name;
+            normalName = ParseSettings.normalName(directiveName);
+            return this;
+        }
+
+        final boolean isSelfClosing() {
+            return selfClosing;
+        }
+
+        // these appenders are rarely hit in not null state-- caused by null chars.
+        final void appendDirectiveName(String append) {
+            // might have null chars - need to replace with null replacement character
+            append = append.replace(TokeniserState.nullChar, Tokeniser.replacementChar);
+            directiveName = directiveName == null ? append : directiveName.concat(append);
+            normalName = ParseSettings.normalName(directiveName);
+        }
+
+        final void appendDirectiveName(char append) {
+            appendDirectiveName(String.valueOf(append));
+        }
+
+        final void appendExpression(String append) {
+            // might have null chars - need to replace with null replacement character
+            append = append.replace(TokeniserState.nullChar, Tokeniser.replacementChar);
+            expression = expression == null ? append : expression.concat(append);
+        }
+
+        final void appendExpression(char append) {
+            appendDirectiveName(String.valueOf(append));
+        }
+
+        @Override
+        abstract public String toString();
+    }
+
+    final static class StartFtlDirective extends FtlDirective {
+        StartFtlDirective() {
+            super();
+            type = TokenType.StartFtlDirective;
+        }
+
+        @Override
+        FtlDirective reset() {
+            super.reset();
+            expression = null;
+            return this;
+        }
+
+        StartFtlDirective nameExpression(String name, String expression) {
+            this.directiveName = name;
+            this.expression = expression;
+            normalName = ParseSettings.normalName(directiveName);
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            if (expression != null && !expression.trim().isEmpty())
+                return "<#" + toStringName() + " " + expression + ">";
+            else
+                return "<#" + toStringName() + ">";
+        }
+    }
+
+    final static class EndFtlDirective extends FtlDirective {
+        EndFtlDirective() {
+            super();
+            type = TokenType.EndFtlDirective;
+        }
+
+        @Override
+        public String toString() {
+            return "</#" + toStringName() + ">";
+        }
+    }
+
+    static abstract class FtlUserDirective extends Token {
+        @Nullable protected String directiveName;
+        @Nullable protected String normalName; // lc version of tag name, for case insensitive tree build
+        @Nullable protected String expression;
+
+        boolean selfClosing = false;
+
+        @Override
+        FtlUserDirective reset() {
+            super.reset();
+            directiveName = null;
+            normalName = null;
+            expression = null;
+            selfClosing = false;
+            return this;
+        }
+
+        final boolean hasExpression() {
+            return expression != null;
+        }
+
+        final void finaliseTag() {
+            // finalises for emit
+        }
+
+        /** Preserves case */
+        final String name() { // preserves case, for input into Tag.valueOf (which may drop case)
+            Validate.isFalse(directiveName == null || directiveName.length() == 0);
+            return directiveName;
+        }
+
+        /** Lower case */
+        final String normalName() { // lower case, used in tree building for working out where in tree it should go
+            return normalName;
+        }
+
+        final String toStringName() {
+            return directiveName != null ? directiveName : "[unset]";
+        }
+
+        final FtlUserDirective name(String name) {
+            directiveName = name;
+            normalName = ParseSettings.normalName(directiveName);
+            return this;
+        }
+
+        final boolean isSelfClosing() {
+            return selfClosing;
+        }
+
+        // these appenders are rarely hit in not null state-- caused by null chars.
+        final void appendDirectiveName(String append) {
+            // might have null chars - need to replace with null replacement character
+            append = append.replace(TokeniserState.nullChar, Tokeniser.replacementChar);
+            directiveName = directiveName == null ? append : directiveName.concat(append);
+            normalName = ParseSettings.normalName(directiveName);
+        }
+
+        final void appendDirectiveName(char append) {
+            appendDirectiveName(String.valueOf(append));
+        }
+
+        final void appendExpression(String append) {
+            // might have null chars - need to replace with null replacement character
+            append = append.replace(TokeniserState.nullChar, Tokeniser.replacementChar);
+            expression = expression == null ? append : expression.concat(append);
+        }
+
+        final void appendExpression(char append) {
+            appendDirectiveName(String.valueOf(append));
+        }
+
+        @Override
+        abstract public String toString();
+    }
+
+    final static class StartFtlUserDirective extends FtlUserDirective {
+        StartFtlUserDirective() {
+            super();
+            type = TokenType.StartFtlUserDirective;
+        }
+
+        @Override
+        FtlUserDirective reset() {
+            super.reset();
+            expression = null;
+            return this;
+        }
+
+        StartFtlUserDirective nameExpression(String name, String expression) {
+            this.directiveName = name;
+            this.expression = expression;
+            normalName = ParseSettings.normalName(directiveName);
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            if (expression != null && !expression.trim().isEmpty())
+                return "<@" + toStringName() + " " + expression + ">";
+            else
+                return "<@" + toStringName() + ">";
+        }
+    }
+
+    final static class EndFtlUserDirective extends FtlUserDirective {
+        EndFtlUserDirective() {
+            super();
+            type = TokenType.EndFtlUserDirective;
+        }
+
+        @Override
+        public String toString() {
+            return "</@" + toStringName() + ">";
+        }
+    }
+
+    final static class FtlComment extends Token {
+        private final StringBuilder data = new StringBuilder();
+        private String dataS; // try to get in one shot
+        boolean bogus = false;
+
+        @Override
+        Token reset() {
+            super.reset();
+            reset(data);
+            dataS = null;
+            bogus = false;
+            return this;
+        }
+
+        FtlComment() {
+            type = TokenType.Comment;
+        }
+
+        String getData() {
+            return dataS != null ? dataS : data.toString();
+        }
+
+        final FtlComment append(String append) {
+            ensureData();
+            if (data.length() == 0) {
+                dataS = append;
+            } else {
+                data.append(append);
+            }
+            return this;
+        }
+
+        final FtlComment append(char append) {
+            ensureData();
+            data.append(append);
+            return this;
+        }
+
+        private void ensureData() {
+            // if on second hit, we'll need to move to the builder
+            if (dataS != null) {
+                data.append(dataS);
+                dataS = null;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "<#--" + getData() + "-->";
+        }
+    }
+
     final boolean isDoctype() {
         return type == TokenType.Doctype;
     }
@@ -498,12 +784,57 @@ abstract class Token {
         return type == TokenType.EOF;
     }
 
+    final boolean isStartFtlDirective() {
+        return type == TokenType.StartFtlDirective;
+    }
+
+    final StartFtlDirective asStartFtlDirective() {
+        return (StartFtlDirective) this;
+    }
+
+    final boolean isEndFtlDirective() {
+        return type == TokenType.EndFtlDirective;
+    }
+
+    final EndFtlDirective asEndFtlDirective() {
+        return (EndFtlDirective) this;
+    }
+
+    final boolean isStartFtlUserDirective() {
+        return type == TokenType.StartFtlUserDirective;
+    }
+
+    final StartFtlUserDirective asStartFtlUserDirective() {
+        return (StartFtlUserDirective) this;
+    }
+
+    final boolean isEndFtlUserDirective() {
+        return type == TokenType.EndFtlUserDirective;
+    }
+
+    final EndFtlUserDirective asEndFtlUserDirective() {
+        return (EndFtlUserDirective) this;
+    }
+
+    final boolean isFtlComment() {
+        return type == TokenType.FtlComment;
+    }
+
+    final FtlComment asFtlComment() {
+        return (FtlComment) this;
+    }
+
     public enum TokenType {
         Doctype,
         StartTag,
         EndTag,
         Comment,
         Character, // note no CData - treated in builder as an extension of Character
-        EOF
+        EOF,
+        StartFtlDirective,
+        EndFtlDirective,
+        StartFtlUserDirective,
+        EndFtlUserDirective,
+        FtlComment,
     }
 }

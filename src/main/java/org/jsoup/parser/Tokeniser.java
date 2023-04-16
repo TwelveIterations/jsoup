@@ -46,6 +46,13 @@ final class Tokeniser {
     Token.Character charPending = new Token.Character();
     Token.Doctype doctypePending = new Token.Doctype(); // doctype building up
     Token.Comment commentPending = new Token.Comment(); // comment building up
+    Token.StartFtlDirective startFtlDirectivePending = new Token.StartFtlDirective();
+    Token.EndFtlDirective endFtlDirectivePending = new Token.EndFtlDirective();
+    Token.FtlDirective ftlDirectivePending = startFtlDirectivePending; // ftl directive we are building up: start or end pending
+    Token.StartFtlUserDirective startFtlUserDirectivePending = new Token.StartFtlUserDirective();
+    Token.EndFtlUserDirective endFtlUserDirectivePending = new Token.EndFtlUserDirective();
+    Token.FtlUserDirective ftlUserDirectivePending = startFtlUserDirectivePending; // ftl user directive we are building up: start or end pending
+    Token.FtlComment ftlCommentPending = new Token.FtlComment(); // ftl comment building up
     @Nullable private String lastStartTag; // the last start tag emitted, to test appropriate end tag
     @Nullable private String lastStartCloseSeq; // "</" + lastStartTag, so we can quickly check for that in RCData
 
@@ -283,6 +290,34 @@ final class Tokeniser {
 
     void emitDoctypePending() {
         emit(doctypePending);
+    }
+
+    Token.FtlDirective createFtlDirectivePending(boolean start) {
+        ftlDirectivePending = start ? startFtlDirectivePending.reset() : endFtlDirectivePending.reset();
+        return ftlDirectivePending;
+    }
+
+    void emitFtlDirectivePending() {
+        ftlDirectivePending.finaliseTag();
+        emit(ftlDirectivePending);
+    }
+
+    Token.FtlUserDirective createFtlUserDirectivePending(boolean start) {
+        ftlUserDirectivePending = start ? startFtlUserDirectivePending.reset() : endFtlUserDirectivePending.reset();
+        return ftlUserDirectivePending;
+    }
+
+    void emitFtlUserDirectivePending() {
+        ftlUserDirectivePending.finaliseTag();
+        emit(ftlUserDirectivePending);
+    }
+
+    void createFtlCommentPending() {
+        ftlCommentPending.reset();
+    }
+
+    void emitFtlCommentPending() {
+        emit(ftlCommentPending);
     }
 
     void createTempBuffer() {

@@ -15,5 +15,8 @@ jobs:
         with:
           java-version: 11
           distribution: temurin
+          server-id: snapshot-repo
+          server-username: NEXUS_USERNAME
+          server-password: NEXUS_PASSWORD
       - name: Publish snapshot
-        run: mvn deploy '-Dversion=${{ github.sha }}-SNAPSHOT' '-DaltDeploymentRepository=snapshot-repo::default::https://nexus.twelveiterations.com/repository/maven-snapshots/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'
+        run: mvn deploy '-Dversion=${{ github.sha }}-SNAPSHOT' '-DaltDeploymentRepository=snapshot-repo::default::https://nexus.twelveiterations.com/repository/maven-snapshots/'

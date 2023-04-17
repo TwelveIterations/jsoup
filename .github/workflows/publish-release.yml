@@ -16,4 +16,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Publish release
-        run: maven publish '-Dversion=${{ github.ref_name }}' '-DaltDeploymentRepository=release-repo::https://nexus.twelveiterations.com/repository/maven-releases/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'
+        run: mvn publish '-Dversion=${{ github.ref_name }}' '-DaltDeploymentRepository=release-repo::https://nexus.twelveiterations.com/repository/maven-releases/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'

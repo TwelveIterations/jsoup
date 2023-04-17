@@ -16,4 +16,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Publish snapshot
-        run: maven publish '-Dversion=${{ github.sha }}-SNAPSHOT' '-DaltDeploymentRepository=snapshot-repo::https://nexus.twelveiterations.com/repository/maven-snapshots/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'
+        run: mvn publish '-Dversion=${{ github.sha }}-SNAPSHOT' '-DaltDeploymentRepository=snapshot-repo::https://nexus.twelveiterations.com/repository/maven-snapshots/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'

@@ -183,6 +183,27 @@ public class Entities {
         for (int offset = 0; offset < length; offset += Character.charCount(codePoint)) {
             codePoint = string.codePointAt(offset);
 
+            if (normaliseWhite && !inExpression) {
+                if (StringUtil.isWhitespace(codePoint)) {
+                    if (stripLeadingWhite && !reachedNonWhite) continue;
+                    if (lastWasWhite) continue;
+                    if (trimTrailing) {
+                        skipped = true;
+                        continue;
+                    }
+                    accum.append(' ');
+                    lastWasWhite = true;
+                    continue;
+                } else {
+                    lastWasWhite = false;
+                    reachedNonWhite = true;
+                    if (skipped) {
+                        accum.append(' '); // wasn't the end, so need to place a normalized space
+                        skipped = false;
+                    }
+                }
+            }
+
             if (inExpression || codePoint == '{') {
                 if (codePoint < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
                     final char c = (char) codePoint;
@@ -224,26 +245,6 @@ public class Entities {
                 continue;
             }
 
-            if (normaliseWhite) {
-                if (StringUtil.isWhitespace(codePoint)) {
-                    if (stripLeadingWhite && !reachedNonWhite) continue;
-                    if (lastWasWhite) continue;
-                    if (trimTrailing) {
-                        skipped = true;
-                        continue;
-                    }
-                    accum.append(' ');
-                    lastWasWhite = true;
-                    continue;
-                } else {
-                    lastWasWhite = false;
-                    reachedNonWhite = true;
-                    if (skipped) {
-                        accum.append(' '); // wasn't the end, so need to place a normalized space
-                        skipped = false;
-                    }
-                }
-            }
             // surrogate pairs, split implementation for efficiency on single char common case (saves creating strings, char[]):
             if (codePoint < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
                 final char c = (char) codePoint;

@@ -1,0 +1,21 @@
+name: publish-release
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Validate gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Publish release
+        run: maven publish '-Dversion=${{ github.ref_name }}' '-DaltDeploymentRepository=release-repo::https://nexus.twelveiterations.com/repository/maven-releases/' '-Dusername=${{ secrets.NEXUS_USER }}' '-Dpassword=${{ secrets.NEXUS_PASSWORD }}'
